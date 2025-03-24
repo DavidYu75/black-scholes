@@ -44,3 +44,16 @@ pip install -r requirements
 cd frontend
 npm install
 ```
+
+### Running the Application
+
+1. Start the backend server:
+```
+cd backend
+python manage.py runserver
+```
+2. Start the frontend development server:
+```
+cd frontend
+npm start
+```
