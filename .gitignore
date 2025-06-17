@@ -1,0 +1,15 @@
+# Project-specific
+*.log
+.DS_Store
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+ehthumbs.db
