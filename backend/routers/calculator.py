@@ -11,10 +11,15 @@ bs_engine = BlackScholesEngine()
 async def calculate_option_prices(request: CalculationRequest):
     """Calculate Black-Scholes option prices and Greeks"""
     try:
-        # TODO: Implement the calculation logic
-        # Call bs_engine.calculate_option_prices() with request parameters
-        # Return CalculationResponse with the results
-        pass
+        result = bs_engine.calculate_option_prices(
+            current_price=request.current_price,
+            strike_price=request.strike_price,
+            time_to_maturity=request.time_to_maturity,
+            volatility=request.volatility,
+            risk_free_rate=request.risk_free_rate,
+            dividend_yield=request.dividend_yield
+        )
+        return CalculationResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

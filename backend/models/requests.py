@@ -8,6 +8,7 @@ class CalculationRequest(BaseModel):
     time_to_maturity: float = Field(..., gt=0, description="Time to maturity in years")
     volatility: float = Field(..., gt=0, le=5, description="Volatility (annual)")
     risk_free_rate: float = Field(..., ge=0, le=1, description="Risk-free interest rate")
+    dividend_yield: float = Field(0.0, ge=0, le=1, description="Annual dividend yield (as decimal, e.g., 0.02 for 2%)")
 
 
 class HeatmapRequest(BaseModel):
