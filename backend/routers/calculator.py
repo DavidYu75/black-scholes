@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from schemas.requests import CalculationRequest, HeatmapRequest
-from schemas.responses import CalculationResponse, HeatmapResponse
-from models.black_scholes import BlackScholesEngine
+from models.requests import CalculationRequest, HeatmapRequest
+from models.responses import CalculationResponse, HeatmapResponse
+from services.black_scholes import BlackScholesEngine
 
 router = APIRouter()
 bs_engine = BlackScholesEngine()
@@ -29,4 +29,3 @@ async def generate_heatmap_data(request: HeatmapRequest):
         pass
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-        
