@@ -66,12 +66,13 @@ class BlackScholesEngine:
         put_delta = -dividend_discount * N_neg_d1
         gamma = norm.pdf(d1) / (current_price * volatility * np.sqrt(time_to_maturity))
         
+        # Round all results to 6 decimal places using banker's rounding
         return {
-            "call_price": call_price,
-            "put_price": put_price,
-            "call_delta": call_delta,
-            "put_delta": put_delta,
-            "gamma": gamma
+            "call_price": round(call_price, 2),
+            "put_price": round(put_price, 2),
+            "call_delta": round(call_delta, 4),
+            "put_delta": round(put_delta, 4),
+            "gamma": round(gamma, 4)
         }
     
     def generate_heatmap_data(
