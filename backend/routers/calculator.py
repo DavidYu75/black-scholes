@@ -28,9 +28,12 @@ async def calculate_option_prices(request: CalculationRequest):
 async def generate_heatmap_data(request: HeatmapRequest):
     """Generate heatmap data for visualization"""
     try:
-        # TODO: Implement the heatmap data generation
-        # Call bs_engine.generate_heatmap_data() with request parameters
-        # Return HeatmapResponse with the matrix data
-        pass
+        result = bs_engine.generate_heatmap_data(
+            base_params=request.base_params,
+            spot_range=(request.spot_min, request.spot_max),
+            volatility_range=(request.vol_min, request.vol_max),
+            grid_size=request.grid_size
+        )
+        return HeatmapResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
