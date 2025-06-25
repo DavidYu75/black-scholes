@@ -1,102 +1,216 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect, useCallback } from "react";
+import {
+  CalculationRequest,
+  CalculationResponse,
+  HeatmapResponse,
+  OptionType,
+  DashboardState,
+} from "@/types";
+import { DEFAULT_PARAMETERS, HEATMAP_DEFAULTS } from "@/lib/constants";
+import { apiClient, ApiError } from "@/lib/api";
+import ParameterControls from "@/components/ParameterControls";
+import ResultsDisplay from "@/components/ResultsDisplay";
+import HeatmapVisualization from "@/components/HeatmapVisualization";
+import { Calculator, Activity, AlertCircle, Zap } from "lucide-react";
+
+export default function Dashboard() {
+  const [state, setState] = useState<DashboardState>({
+    parameters: DEFAULT_PARAMETERS,
+    selectedOptionType: "call",
+    results: null,
+    heatmapData: null,
+    isLoading: false,
+    error: null,
+  });
+
+  // Calculate option prices
+  const calculatePrices = useCallback(async (params: CalculationRequest) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const results = await apiClient.calculateOptionPrices(params);
+      setState((prev) => ({ ...prev, results, isLoading: false }));
+    } catch (error) {
+      const errorMessage =
+        error instanceof ApiError
+          ? `API Error: ${error.message}`
+          : "Failed to calculate option prices";
+      setState((prev) => ({ ...prev, error: errorMessage, isLoading: false }));
+    }
+  }, []);
+
+  // Generate heatmap data
+  const generateHeatmap = useCallback(async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const currentPrice = state.parameters.current_price;
+      const currentVol = state.parameters.volatility;
+
+      const heatmapRequest = {
+        base_params: state.parameters,
+        spot_min: currentPrice * (1 - HEATMAP_DEFAULTS.spotRangePercent),
+        spot_max: currentPrice * (1 + HEATMAP_DEFAULTS.spotRangePercent),
+        vol_min: Math.max(
+          0.05,
+          currentVol * (1 - HEATMAP_DEFAULTS.volRangePercent)
+        ),
+        vol_max: currentVol * (1 + HEATMAP_DEFAULTS.volRangePercent),
+        grid_size: HEATMAP_DEFAULTS.gridSize,
+      };
+
+      const heatmapData = await apiClient.generateHeatmapData(heatmapRequest);
+      setState((prev) => ({ ...prev, heatmapData, isLoading: false }));
+    } catch (error) {
+      const errorMessage =
+        error instanceof ApiError
+          ? `API Error: ${error.message}`
+          : "Failed to generate heatmap data";
+      setState((prev) => ({ ...prev, error: errorMessage, isLoading: false }));
+    }
+  }, [state.parameters]);
+
+  // Handle parameter changes
+  const handleParametersChange = (newParameters: CalculationRequest) => {
+    setState((prev) => ({ ...prev, parameters: newParameters }));
+  };
+
+  // Handle option type change
+  const handleOptionTypeChange = (optionType: OptionType) => {
+    setState((prev) => ({ ...prev, selectedOptionType: optionType }));
+  };
+
+  // Auto-calculate on parameter changes with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      calculatePrices(state.parameters);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [state.parameters, calculatePrices]);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gray-900 text-gray-100">
+      {/* Header */}
+      <header className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
+              <Calculator className="w-8 h-8 text-blue-400" />
+              <h1 className="text-xl font-bold">Black-Scholes Dashboard</h1>
+            </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-400">
+                <Activity className="w-4 h-4" />
+                <span>Real-time Pricing</span>
+              </div>
+
+              <button
+                onClick={generateHeatmap}
+                disabled={state.isLoading}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg transition-colors"
+              >
+                <Zap className="w-4 h-4" />
+                <span>Generate Heatmap</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Error Display */}
+      {state.error && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div className="bg-red-900/50 border border-red-500/50 rounded-lg p-4">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+              <span className="text-red-200">{state.error}</span>
+              <button
+                onClick={() => setState((prev) => ({ ...prev, error: null }))}
+                className="ml-auto text-red-400 hover:text-red-300"
+                aria-label="Close error message"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Parameter Controls */}
+          <div className="lg:col-span-1">
+            <ParameterControls
+              parameters={state.parameters}
+              onChange={handleParametersChange}
+              disabled={state.isLoading}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
+
+          {/* Results and Visualizations */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Results Display */}
+            <ResultsDisplay
+              results={state.results}
+              selectedOptionType={state.selectedOptionType}
+              onOptionTypeChange={handleOptionTypeChange}
+              isLoading={state.isLoading}
+            />
+
+            {/* Heatmap Visualization */}
+            <HeatmapVisualization
+              data={state.heatmapData}
+              selectedOptionType={state.selectedOptionType}
+              isLoading={state.isLoading}
+            />
+          </div>
+        </div>
+
+        {/* Educational Content */}
+        <div className="mt-12 bg-gray-800 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-gray-100 mb-4">
+            About Black-Scholes
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300">
+            <div>
+              <h3 className="font-semibold text-gray-200 mb-2">The Model</h3>
+              <p className="text-sm">
+                The Black-Scholes model is a mathematical model for pricing
+                options contracts. It calculates the theoretical value of
+                options using factors like current stock price, strike price,
+                time to expiration, volatility, and risk-free interest rate.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-200 mb-2">
+                Key Assumptions
+              </h3>
+              <ul className="text-sm space-y-1">
+                <li>• Constant volatility and risk-free rate</li>
+                <li>• European-style exercise (only at expiration)</li>
+                <li>• No dividends during option life</li>
+                <li>• Efficient markets with no transaction costs</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Footer */}
+      <footer className="bg-gray-800 border-t border-gray-700 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center text-gray-400 text-sm">
+            <p>
+              Black-Scholes Interactive Dashboard • Built for educational and
+              professional use
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );
