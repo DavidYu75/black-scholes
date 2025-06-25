@@ -43,14 +43,14 @@ class BlackScholesApi {
   async calculateOptionPrices(
     params: CalculationRequest
   ): Promise<CalculationResponse> {
-    return this.request<CalculationResponse>("/api/v1/calculate", {
+    return this.request<CalculationResponse>("/api/calculate", {
       method: "POST",
       body: JSON.stringify(params),
     });
   }
 
   async generateHeatmapData(params: HeatmapRequest): Promise<HeatmapResponse> {
-    return this.request<HeatmapResponse>("/api/v1/heatmap", {
+    return this.request<HeatmapResponse>("/api/heatmap", {
       method: "POST",
       body: JSON.stringify(params),
     });

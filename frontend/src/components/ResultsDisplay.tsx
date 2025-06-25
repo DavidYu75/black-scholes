@@ -159,22 +159,6 @@ export default function ResultsDisplay({
           </div>
         </div>
       </div>
-
-      {/* Greeks Explanation */}
-      <div className="mt-6 p-4 bg-gray-700/30 rounded-lg">
-        <h3 className="text-sm font-semibold text-gray-300 mb-2">
-          Greeks Explanation
-        </h3>
-        <div className="text-xs text-gray-400 space-y-1">
-          <p>
-            <strong>Delta:</strong> Price sensitivity to underlying asset price
-            changes
-          </p>
-          <p>
-            <strong>Gamma:</strong> Rate of change of delta
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
