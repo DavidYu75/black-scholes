@@ -131,6 +131,7 @@ export default function Dashboard() {
               <button
                 onClick={() => setState((prev) => ({ ...prev, error: null }))}
                 className="ml-auto text-red-400 hover:text-red-300"
+                aria-label="Close error message"
               >
                 ×
               </button>

@@ -1,6 +1,9 @@
 import { HeatmapResponse, OptionType } from '@/types';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { BarChart3, Download } from 'lucide-react';
+import { useHeatmapCanvas, HoveredCell } from '@/hooks/useHeatmapCanvas';
+
+type ViewPerspective = 'buyer' | 'seller';
 
 interface HeatmapProps {
   data: HeatmapResponse | null;
@@ -8,225 +11,53 @@ interface HeatmapProps {
   isLoading?: boolean;
 }
 
-type ViewPerspective = 'buyer' | 'seller';
-
 export default function HeatmapVisualization({ data, selectedOptionType, isLoading = false }: HeatmapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number; value: number; spot: number; vol: number } | null>(null);
+  const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null);
   const [viewPerspective, setViewPerspective] = useState<ViewPerspective>('seller');
+  
+  const { drawHeatmap, getHoveredCell, exportToImage } = useHeatmapCanvas(
+    canvasRef,
+    data,
+    selectedOptionType,
+    viewPerspective
+  );
 
+  // Handle canvas drawing
   useEffect(() => {
-    if (!data || !canvasRef.current) return;
+    if (!canvasRef.current) return;
+    drawHeatmap(canvasRef.current);
+  }, [drawHeatmap]);
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (!canvasRef.current) return;
+      drawHeatmap(canvasRef.current);
+    };
 
-    // Canvas dimensions with margins for labels
-    const margin = { top: 20, right: 80, bottom: 60, left: 80 };
-    const rect = canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    
-    canvas.width = width * devicePixelRatio;
-    canvas.height = height * devicePixelRatio;
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [drawHeatmap]);
 
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current || !data) return;
 
-    // Get price data
-    const prices = selectedOptionType === 'call' ? data.call_prices : data.put_prices;
-    const spotValues = data.spot_values;
-    const volValues = data.volatility_values;
-    
-    // Calculate plot area
-    const plotWidth = width - margin.left - margin.right;
-    const plotHeight = height - margin.top - margin.bottom;
-    
-    // Find min and max values for better color scaling
-    const allPrices = prices.flat();
-    const minPrice = Math.min(...allPrices);
-    const maxPrice = Math.max(...allPrices);
-    const priceRange = maxPrice - minPrice;
-
-    // Calculate cell dimensions
-    const cellWidth = plotWidth / prices[0].length;
-    const cellHeight = plotHeight / prices.length;
-
-    // Draw heatmap cells
-    prices.forEach((row, i) => {
-      row.forEach((price, j) => {
-        const x = margin.left + j * cellWidth;
-        const y = margin.top + i * cellHeight;
-        
-        // Better color mapping with green/red scheme
-        let normalized = (price - minPrice) / priceRange;
-        
-        // Invert colors for buyer's view (lower prices = better = green)
-        if (viewPerspective === 'buyer') {
-          normalized = 1 - normalized;
-        }
-        
-        // Use green-to-red color scheme for both call and put options
-        // Green = better, Red = worse (regardless of option type)
-        const intensity = Math.pow(normalized, 0.7); // Gamma correction for better visibility
-
-        // Create gradient from red (worse) to green (better)
-        // Hue: 0 = red, 120 = green
-        const hue = intensity * 120; // 0-120 range for red to green
-        const saturation = 70 + intensity * 30; // 70-100% saturation
-        const lightness = 35 + intensity * 25; // 35-60% lightness
-
-        const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, cellWidth, cellHeight);
-
-        // Add subtle grid lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x, y, cellWidth, cellHeight);
-      });
-    });
-
-    // Draw axes and labels
-    ctx.fillStyle = '#e5e7eb';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-
-    // X-axis (Spot Price) labels
-    const xAxisY = margin.top + plotHeight + 15;
-    const numXLabels = Math.min(6, spotValues.length);
-    for (let i = 0; i < numXLabels; i++) {
-      const index = Math.floor(i * (spotValues.length - 1) / (numXLabels - 1));
-      const x = margin.left + (index * plotWidth) / (spotValues.length - 1);
-      const label = `$${spotValues[index].toFixed(0)}`;
-      ctx.fillText(label, x, xAxisY);
-    }
-
-    // Y-axis (Volatility) labels
-    ctx.textAlign = 'right';
-    const numYLabels = Math.min(6, volValues.length);
-    for (let i = 0; i < numYLabels; i++) {
-      const index = Math.floor(i * (volValues.length - 1) / (numYLabels - 1));
-      const y = margin.top + (index * plotHeight) / (volValues.length - 1) + 4;
-      const label = `${(volValues[volValues.length - 1 - index] * 100).toFixed(0)}%`;
-      ctx.fillText(label, margin.left - 10, y);
-    }
-
-    // Axis titles
-    ctx.fillStyle = '#d1d5db';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.textAlign = 'center';
-    
-    // X-axis title
-    ctx.fillText('Spot Price ($)', width / 2, height - 15);
-    
-    // Y-axis title (rotated)
-    ctx.save();
-    ctx.translate(15, height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText('Volatility (%)', 0, 0);
-    ctx.restore();
-
-    // Color scale legend
-    const legendWidth = 20;
-    const legendHeight = 120;
-    const legendX = width - margin.right + 20;
-    const legendY = margin.top + (plotHeight - legendHeight) / 2;
-
-    // Draw legend gradient (green to red scheme)
-    const gradient = ctx.createLinearGradient(0, legendY + legendHeight, 0, legendY);
-    
-    if (viewPerspective === 'buyer') {
-      // For buyers: Green (top) = good (low prices), Red (bottom) = bad (high prices)
-      gradient.addColorStop(0, 'hsl(0, 85%, 45%)');    // Red = worse (high prices)
-      gradient.addColorStop(1, 'hsl(120, 85%, 45%)');  // Green = better (low prices)
-    } else {
-      // For sellers: Green (top) = good (high prices), Red (bottom) = bad (low prices)
-      gradient.addColorStop(0, 'hsl(0, 85%, 45%)');    // Red = worse (low prices)
-      gradient.addColorStop(1, 'hsl(120, 85%, 45%)');  // Green = better (high prices)
-    }
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(legendX, legendY, legendWidth, legendHeight);
-    
-    // Legend border
-    ctx.strokeStyle = '#6b7280';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(legendX, legendY, legendWidth, legendHeight);
-
-    // Legend labels (adjust based on perspective)
-    ctx.fillStyle = '#d1d5db';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'left';
-    
-    if (viewPerspective === 'buyer') {
-      ctx.fillText('Better', legendX + legendWidth + 5, legendY + 5);
-      ctx.fillText(`${minPrice.toFixed(2)}`, legendX + legendWidth + 5, legendY + 15);
-      ctx.fillText('Worse', legendX + legendWidth + 5, legendY + legendHeight - 5);
-      ctx.fillText(`${maxPrice.toFixed(2)}`, legendX + legendWidth + 5, legendY + legendHeight + 10);
-    } else {
-      ctx.fillText('Better', legendX + legendWidth + 5, legendY + 5);
-      ctx.fillText(`${maxPrice.toFixed(2)}`, legendX + legendWidth + 5, legendY + 15);
-      ctx.fillText('Worse', legendX + legendWidth + 5, legendY + legendHeight - 5);
-      ctx.fillText(`${minPrice.toFixed(2)}`, legendX + legendWidth + 5, legendY + legendHeight + 10);
-    }
-
-  }, [data, selectedOptionType, viewPerspective]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!data || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const margin = { top: 20, right: 80, bottom: 60, left: 80 };
-    const plotWidth = rect.width - margin.left - margin.right;
-    const plotHeight = rect.height - margin.top - margin.bottom;
+    const cell = getHoveredCell(x, y);
+    setHoveredCell(cell);
+  }, [data, getHoveredCell]);
 
-    // Check if mouse is within plot area
-    if (x < margin.left || x > margin.left + plotWidth || 
-        y < margin.top || y > margin.top + plotHeight) {
-      setHoveredCell(null);
-      return;
-    }
-
-    const prices = selectedOptionType === 'call' ? data.call_prices : data.put_prices;
-    const cellWidth = plotWidth / prices[0].length;
-    const cellHeight = plotHeight / prices.length;
-
-    const col = Math.floor((x - margin.left) / cellWidth);
-    const row = Math.floor((y - margin.top) / cellHeight);
-
-    if (row >= 0 && row < prices.length && col >= 0 && col < prices[0].length) {
-      setHoveredCell({
-        x: col,
-        y: row,
-        value: prices[row][col],
-        spot: data.spot_values[col],
-        vol: data.volatility_values[data.volatility_values.length - 1 - row] // Flip Y axis
-      });
-    } else {
-      setHoveredCell(null);
-    }
-  };
-
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setHoveredCell(null);
-  };
+  }, []);
 
-  const handleExport = () => {
-    if (!canvasRef.current) return;
-    
-    const link = document.createElement('a');
-    link.download = `${selectedOptionType}-option-heatmap.png`;
-    link.href = canvasRef.current.toDataURL();
-    link.click();
-  };
+  const handleExport = useCallback(() => {
+    exportToImage(`${selectedOptionType}-option-heatmap.png`);
+  }, [exportToImage, selectedOptionType]);
 
   if (isLoading) {
     return (
