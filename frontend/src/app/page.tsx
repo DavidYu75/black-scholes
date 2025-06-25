@@ -11,7 +11,7 @@ import { apiClient, ApiError } from "@/lib/api";
 import ParameterControls from "@/components/ParameterControls";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import HeatmapVisualization from "@/components/HeatmapVisualization";
-import { Calculator, Activity, AlertCircle, Zap } from "lucide-react";
+import { Calculator, AlertCircle } from "lucide-react";
 
 export default function Dashboard() {
   const [state, setState] = useState<DashboardState>({
@@ -110,19 +110,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <Activity className="w-4 h-4" />
-                <span>Real-time Pricing</span>
-              </div>
-
-              <button
-                onClick={generateHeatmap}
-                disabled={state.isLoading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg transition-colors"
-              >
-                <Zap className="w-4 h-4" />
-                <span>Generate Heatmap</span>
-              </button>
+              {/* Header right side intentionally left empty */}
             </div>
           </div>
         </div>
