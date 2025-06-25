@@ -88,7 +88,7 @@ export default function ResultsDisplay({
     );
   }
 
-  const formatPrice = (value: number) => `$${value.toFixed(4)}`;
+  const formatPrice = (value: number) => `$${value.toFixed(2)}`;
   const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
 
   return (
