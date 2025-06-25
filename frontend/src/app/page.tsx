@@ -89,6 +89,15 @@ export default function Dashboard() {
     return () => clearTimeout(timeoutId);
   }, [state.parameters, calculatePrices]);
 
+  // Auto-update heatmap when parameters change with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      generateHeatmap();
+    }, 500); // Slightly longer debounce for heatmap since it's more resource-intensive
+
+    return () => clearTimeout(timeoutId);
+  }, [state.parameters, generateHeatmap]);
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       {/* Header */}
