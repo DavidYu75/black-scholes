@@ -88,7 +88,7 @@ export default function ResultsDisplay({
     );
   }
 
-  const formatPrice = (value: number) => `$${value.toFixed(4)}`;
+  const formatPrice = (value: number) => `$${value.toFixed(2)}`;
   const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
 
   return (
@@ -157,22 +157,6 @@ export default function ResultsDisplay({
             <span className="text-sm">More Greeks</span>
             <div className="text-xs mt-1">Coming Soon</div>
           </div>
-        </div>
-      </div>
-
-      {/* Greeks Explanation */}
-      <div className="mt-6 p-4 bg-gray-700/30 rounded-lg">
-        <h3 className="text-sm font-semibold text-gray-300 mb-2">
-          Greeks Explanation
-        </h3>
-        <div className="text-xs text-gray-400 space-y-1">
-          <p>
-            <strong>Delta:</strong> Price sensitivity to underlying asset price
-            changes
-          </p>
-          <p>
-            <strong>Gamma:</strong> Rate of change of delta
-          </p>
         </div>
       </div>
     </div>

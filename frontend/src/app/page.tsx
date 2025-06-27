@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   CalculationRequest,
-  CalculationResponse,
-  HeatmapResponse,
   OptionType,
   DashboardState,
 } from "@/types";
@@ -13,7 +11,7 @@ import { apiClient, ApiError } from "@/lib/api";
 import ParameterControls from "@/components/ParameterControls";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import HeatmapVisualization from "@/components/HeatmapVisualization";
-import { Calculator, Activity, AlertCircle, Zap } from "lucide-react";
+import { Calculator, AlertCircle } from "lucide-react";
 
 export default function Dashboard() {
   const [state, setState] = useState<DashboardState>({
@@ -91,6 +89,15 @@ export default function Dashboard() {
     return () => clearTimeout(timeoutId);
   }, [state.parameters, calculatePrices]);
 
+  // Auto-update heatmap when parameters change with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      generateHeatmap();
+    }, 500); // Slightly longer debounce for heatmap since it's more resource-intensive
+
+    return () => clearTimeout(timeoutId);
+  }, [state.parameters, generateHeatmap]);
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
       {/* Header */}
@@ -103,19 +110,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <Activity className="w-4 h-4" />
-                <span>Real-time Pricing</span>
-              </div>
-
-              <button
-                onClick={generateHeatmap}
-                disabled={state.isLoading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg transition-colors"
-              >
-                <Zap className="w-4 h-4" />
-                <span>Generate Heatmap</span>
-              </button>
+              {/* Header right side intentionally left empty */}
             </div>
           </div>
         </div>
@@ -144,12 +139,54 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Parameter Controls */}
-          <div className="lg:col-span-1">
-            <ParameterControls
-              parameters={state.parameters}
-              onChange={handleParametersChange}
-              disabled={state.isLoading}
-            />
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <ParameterControls
+                parameters={state.parameters}
+                onChange={handleParametersChange}
+                disabled={state.isLoading}
+              />
+            </div>
+            
+            {/* Greeks Explanation */}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-200 mb-4">Greeks Explanation</h3>
+              <div className="space-y-4 text-sm text-gray-300">
+                <div>
+                  <p className="font-medium text-blue-400">Delta (Δ)</p>
+                  <p>Measures the rate of change of the option&apos;s price relative to changes in the underlying asset&apos;s price.</p>
+                </div>
+                <div>
+                  <p className="font-medium text-blue-400">Gamma (Γ)</p>
+                  <p>Measures the rate of change in delta relative to changes in the underlying asset&apos;s price.</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* About Black-Scholes */}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-200 mb-4">About Black-Scholes</h3>
+              <div className="space-y-4 text-sm text-gray-300">
+                <div>
+                  <h4 className="font-medium text-gray-200 mb-1">The Model</h4>
+                  <p className="text-sm">
+                    The Black-Scholes model is a mathematical model for pricing
+                    options contracts. It calculates the theoretical value of
+                    options using factors like current stock price, strike price,
+                    time to expiration, volatility, and risk-free interest rate.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-200 mb-1">Key Assumptions</h4>
+                  <ul className="space-y-1">
+                    <li>• Constant volatility and risk-free rate</li>
+                    <li>• European-style exercise (only at expiration)</li>
+                    <li>• No dividends during option life</li>
+                    <li>• Efficient markets with no transaction costs</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Results and Visualizations */}
@@ -168,35 +205,6 @@ export default function Dashboard() {
               selectedOptionType={state.selectedOptionType}
               isLoading={state.isLoading}
             />
-          </div>
-        </div>
-
-        {/* Educational Content */}
-        <div className="mt-12 bg-gray-800 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-gray-100 mb-4">
-            About Black-Scholes
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300">
-            <div>
-              <h3 className="font-semibold text-gray-200 mb-2">The Model</h3>
-              <p className="text-sm">
-                The Black-Scholes model is a mathematical model for pricing
-                options contracts. It calculates the theoretical value of
-                options using factors like current stock price, strike price,
-                time to expiration, volatility, and risk-free interest rate.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-200 mb-2">
-                Key Assumptions
-              </h3>
-              <ul className="text-sm space-y-1">
-                <li>• Constant volatility and risk-free rate</li>
-                <li>• European-style exercise (only at expiration)</li>
-                <li>• No dividends during option life</li>
-                <li>• Efficient markets with no transaction costs</li>
-              </ul>
-            </div>
           </div>
         </div>
       </main>
